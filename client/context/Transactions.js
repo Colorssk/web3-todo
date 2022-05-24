@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { ethers } from 'ethers'
+import { contractABI, contractAddress } from '../lib/constants'
 
 export const TransactionContext = React.createContext();
 
@@ -7,8 +9,26 @@ if (typeof window !== "undefined") {
   eth = window?.ethereum;
 }
 
+
+const getEthereumContract = () => {
+  const provider = new ethers.providers.Web3Provider(ethereum)
+  const signer = provider.getSigner()
+  const transactionContract = new ethers.Contract(
+    contractAddress,
+    contractABI,
+    signer,
+  )
+
+  return transactionContract
+}
+
 export const TransactionProvider = (props) => {
   const [currentAccount, setCurrentAccount] = useState();
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    addressTo: 'OX123asdasdasdasd',
+    amount: '12323',
+  })
   const checkIfWalletIsConnected = async (metamask = eth) => {
     try {
       if (!metamask) return alert("Please install metamask ");
@@ -69,12 +89,12 @@ export const TransactionProvider = (props) => {
 
       await transactionHash.wait()
 
-      await saveTransaction(
-        transactionHash.hash,
-        amount,
-        connectedAccount,
-        addressTo,
-      )
+      // await saveTransaction(
+      //   transactionHash.hash,
+      //   amount,
+      //   connectedAccount,
+      //   addressTo,
+      // )
 
       setIsLoading(false)
     } catch (error) {
@@ -82,15 +102,26 @@ export const TransactionProvider = (props) => {
     }
   }
 
+  const handleChange = (e, name) => {
+    console.log(e.target.value, name)
+    setFormData(prevState => ({ ...prevState, [name]: e.target.value }))
+  }
+
   useEffect(() => {
     checkIfWalletIsConnected();
   }, []);
+  
 
   return (
     <TransactionContext.Provider
       value={{
         currentAccount,
         connectWallet,
+        formData,
+        setFormData,
+        handleChange,
+        sendTransaction,
+        isLoading,
       }}
     >
       {props.children}
