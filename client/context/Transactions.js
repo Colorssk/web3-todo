@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ethers } from 'ethers'
+import { client } from '../lib/sanityClient'
 import { contractABI, contractAddress } from '../lib/constants'
 
 export const TransactionContext = React.createContext();
@@ -8,7 +9,6 @@ let eth;
 if (typeof window !== "undefined") {
   eth = window?.ethereum;
 }
-
 
 const getEthereumContract = () => {
   const provider = new ethers.providers.Web3Provider(ethereum)
@@ -29,6 +29,19 @@ export const TransactionProvider = (props) => {
     addressTo: 'OX123asdasdasdasd',
     amount: '12323',
   })
+  useEffect(() => {
+    if (!currentAccount) return
+    ;(async () => {
+      const userDoc = {
+        _type: 'users',
+        _id: currentAccount,
+        userName: 'Unnamed',
+        address: currentAccount,
+      }
+  
+      await client.createIfNotExists(userDoc)
+    })()
+  }, [currentAccount])
   const checkIfWalletIsConnected = async (metamask = eth) => {
     try {
       if (!metamask) return alert("Please install metamask ");
@@ -54,6 +67,38 @@ export const TransactionProvider = (props) => {
       throw new Error(e);
     }
   };
+  const saveTransaction = async (
+    txHash,
+    amount,
+    fromAddress = currentAccount,
+    toAddress,
+  ) => {
+    const txDoc = {
+      _type: 'transactions',
+      _id: txHash,
+      fromAddress: fromAddress,
+      toAddress: toAddress,
+      timestamp: new Date(Date.now()).toISOString(),
+      txHash: txHash,
+      amount: parseFloat(amount),
+    }
+
+    await client.createIfNotExists(txDoc)
+
+    await client
+      .patch(currentAccount)
+      .setIfMissing({ transactions: [] })
+      .insert('after', 'transactions[-1]', [
+        {
+          _key: txHash,
+          _ref: txHash,
+          _type: 'reference',
+        },
+      ])
+      .commit()
+
+    return
+  }
 
   const sendTransaction = async (
     metamask = eth,
@@ -66,6 +111,9 @@ export const TransactionProvider = (props) => {
 
       const parsedAmount = ethers.utils.parseEther(amount)
 
+
+      console.log(metamask)
+      console.log(connectedAccount, connectedAccount)
       await metamask.request({
         method: 'eth_sendTransaction',
         params: [
@@ -89,12 +137,12 @@ export const TransactionProvider = (props) => {
 
       await transactionHash.wait()
 
-      // await saveTransaction(
-      //   transactionHash.hash,
-      //   amount,
-      //   connectedAccount,
-      //   addressTo,
-      // )
+      await saveTransaction(
+        transactionHash.hash,
+        amount,
+        connectedAccount,
+        addressTo,
+      )
 
       setIsLoading(false)
     } catch (error) {
@@ -110,7 +158,7 @@ export const TransactionProvider = (props) => {
   useEffect(() => {
     checkIfWalletIsConnected();
   }, []);
-  
+
 
   return (
     <TransactionContext.Provider

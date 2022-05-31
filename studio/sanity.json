@@ -1,11 +1,11 @@
 {
   "root": true,
-  "project": {
-    "name": "web3-todo"
-  },
   "api": {
     "projectId": "b8z868lv",
     "dataset": "production"
+  },
+  "project": {
+    "name": "web3-todo"
   },
   "plugins": [
     "@sanity/base",
